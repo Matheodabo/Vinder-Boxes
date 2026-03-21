@@ -700,44 +700,46 @@ async function checkPassword(){
 }
 
 // ── ESPN ──
+// Builds a YYYYMMDD string offset by `days` from today
+function espnDate(days=0){
+  const d=new Date();d.setDate(d.getDate()+days);
+  return d.toISOString().slice(0,10).replace(/-/g,'');
+}
+
+async function fetchOneESPN(url){
+  try{const r=await fetch(url);const d=await r.json();return d.events||[];}
+  catch(e){console.warn('ESPN fetch failed:',url,e);return[];}
+}
+
 async function fetchScores(){
   const btn=document.getElementById('refreshBtn');
   if(btn){btn.innerHTML='<span class="spin"></span> Loading';btn.disabled=true;}
   try{
-    // Build date strings for yesterday, today, and tomorrow
-    // so we always capture completed games even if ESPN defaults to today
-    const now=new Date();
-    const dates=[-1,0,1].map(offset=>{
-      const d=new Date(now);d.setDate(d.getDate()+offset);
-      return d.toISOString().slice(0,10).replace(/-/g,'');
+    // Fetch yesterday, today, and tomorrow individually — ESPN does not support date ranges.
+    // We also try with groups=100 (NCAA tournament) and without, for maximum coverage.
+    const yesterday=espnDate(-1),today=espnDate(0),tomorrow=espnDate(1);
+
+    const fetches=await Promise.all([
+      fetchOneESPN(`${ESPN_URL}?groups=100&limit=200&dates=${yesterday}`),
+      fetchOneESPN(`${ESPN_URL}?groups=100&limit=200&dates=${today}`),
+      fetchOneESPN(`${ESPN_URL}?groups=100&limit=200&dates=${tomorrow}`),
+      fetchOneESPN(`${ESPN_URL}?limit=200&dates=${yesterday}`),
+      fetchOneESPN(`${ESPN_URL}?limit=200&dates=${today}`),
+    ]);
+
+    // Merge all results, deduplicate by event id
+    const seen=new Set();
+    const allEvents=[];
+    fetches.flat().forEach(e=>{
+      if(e.id&&!seen.has(e.id)){seen.add(e.id);allEvents.push(e);}
     });
 
-    // Try multiple URLs: tournament group with date range, then fallback
-    const urls=[
-      `${ESPN_URL}?groups=100&limit=200&dates=${dates[0]}-${dates[2]}`,
-      `${ESPN_URL}?groups=100&limit=200`,
-      `${ESPN_URL}?limit=200&dates=${dates[0]}`,
-      `${ESPN_URL}?limit=200`
-    ];
-
-    let allEvents=[];
-    for(const url of urls){
-      try{
-        const r=await fetch(url),d=await r.json();
-        const evs=d.events||[];
-        if(evs.length>0){
-          // Merge events — avoid duplicates by id
-          evs.forEach(e=>{if(!allEvents.find(x=>x.id===e.id))allEvents.push(e);});
-        }
-      }catch(e){console.warn('ESPN URL failed:',url,e);}
-      // If we have completed games, no need to try more URLs
-      if(allEvents.some(e=>e.competitions?.[0]?.status?.type?.name?.includes('FINAL')))break;
-    }
-
     games=parseGames(allEvents);
-    const completed=games.filter(g=>g.completed).length;
+    const nFinal=games.filter(g=>g.completed).length;
+    const nLive=games.filter(g=>g.inProgress).length;
+    const nPre=games.filter(g=>!g.completed&&!g.inProgress).length;
     const ts=document.getElementById('refreshTs');
-    if(ts)ts.textContent=`Updated ${new Date().toLocaleTimeString()} · ${completed} final, ${games.filter(g=>g.inProgress).length} live, ${games.filter(g=>!g.completed&&!g.inProgress).length} upcoming`;
+    if(ts)ts.textContent=`Updated ${new Date().toLocaleTimeString()} · ${nFinal} final · ${nLive} live · ${nPre} upcoming`;
     renderScores();renderLive();renderGrid();updateStats();renderLeaderboard();
   }catch(e){
     const sc=document.getElementById('scoresContent');
