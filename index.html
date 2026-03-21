@@ -700,47 +700,74 @@ async function checkPassword(){
 }
 
 // ── ESPN ──
-// Builds a YYYYMMDD string offset by `days` from today
 function espnDate(days=0){
   const d=new Date();d.setDate(d.getDate()+days);
   return d.toISOString().slice(0,10).replace(/-/g,'');
 }
 
 async function fetchOneESPN(url){
-  try{const r=await fetch(url);const d=await r.json();return d.events||[];}
-  catch(e){console.warn('ESPN fetch failed:',url,e);return[];}
+  try{
+    const r=await fetch(url);
+    if(!r.ok)return[];
+    const d=await r.json();
+    return d.events||[];
+  }catch(e){console.warn('ESPN fetch failed:',url,e);return[];}
 }
 
 async function fetchScores(){
   const btn=document.getElementById('refreshBtn');
   if(btn){btn.innerHTML='<span class="spin"></span> Loading';btn.disabled=true;}
   try{
-    // Fetch yesterday, today, and tomorrow individually — ESPN does not support date ranges.
-    // We also try with groups=100 (NCAA tournament) and without, for maximum coverage.
-    const yesterday=espnDate(-1),today=espnDate(0),tomorrow=espnDate(1);
+    const d0=espnDate(-3),d1=espnDate(-2),d2=espnDate(-1),d3=espnDate(0),d4=espnDate(1);
 
+    // Fire all requests in parallel — no groups filter (that was likely the culprit),
+    // covering last 3 days + today + tomorrow to catch all tournament games
     const fetches=await Promise.all([
-      fetchOneESPN(`${ESPN_URL}?groups=100&limit=200&dates=${yesterday}`),
-      fetchOneESPN(`${ESPN_URL}?groups=100&limit=200&dates=${today}`),
-      fetchOneESPN(`${ESPN_URL}?groups=100&limit=200&dates=${tomorrow}`),
-      fetchOneESPN(`${ESPN_URL}?limit=200&dates=${yesterday}`),
-      fetchOneESPN(`${ESPN_URL}?limit=200&dates=${today}`),
+      fetchOneESPN(`${ESPN_URL}?dates=${d0}&limit=200`),
+      fetchOneESPN(`${ESPN_URL}?dates=${d1}&limit=200`),
+      fetchOneESPN(`${ESPN_URL}?dates=${d2}&limit=200`),
+      fetchOneESPN(`${ESPN_URL}?dates=${d3}&limit=200`),
+      fetchOneESPN(`${ESPN_URL}?dates=${d4}&limit=200`),
+      fetchOneESPN(`${ESPN_URL}?limit=200`), // default (today/current)
     ]);
 
-    // Merge all results, deduplicate by event id
-    const seen=new Set();
-    const allEvents=[];
+    // Deduplicate by id
+    const seen=new Set(),allEvents=[];
     fetches.flat().forEach(e=>{
-      if(e.id&&!seen.has(e.id)){seen.add(e.id);allEvents.push(e);}
+      if(e&&e.id&&!seen.has(e.id)){seen.add(e.id);allEvents.push(e);}
+    });
+
+    // Debug: log raw status names so we can see what ESPN actually returns
+    const statusNames=[...new Set(allEvents.map(e=>e.competitions?.[0]?.status?.type?.name||'?'))];
+    console.log('[ESPN] Total events:',allEvents.length,'| Status types:',statusNames);
+    allEvents.slice(0,5).forEach(e=>{
+      const s=e.competitions?.[0]?.status?.type?.name;
+      console.log('[ESPN] Game:',e.name,'| Status:',s);
     });
 
     games=parseGames(allEvents);
     const nFinal=games.filter(g=>g.completed).length;
     const nLive=games.filter(g=>g.inProgress).length;
     const nPre=games.filter(g=>!g.completed&&!g.inProgress).length;
+
     const ts=document.getElementById('refreshTs');
-    if(ts)ts.textContent=`Updated ${new Date().toLocaleTimeString()} · ${nFinal} final · ${nLive} live · ${nPre} upcoming`;
+    if(ts)ts.textContent=`Updated ${new Date().toLocaleTimeString()} · ${allEvents.length} total · ${nFinal} final · ${nLive} live · ${nPre} upcoming`;
+
     renderScores();renderLive();renderGrid();updateStats();renderLeaderboard();
+
+    // If still 0 final after all that, show a visible diagnostic message
+    if(nFinal===0&&allEvents.length>0){
+      const sc=document.getElementById('scoresContent');
+      const sample=allEvents.slice(0,3).map(e=>{
+        const s=e.competitions?.[0]?.status?.type?.name||'?';
+        return `${e.name} [${s}]`;
+      }).join('<br>');
+      if(sc)sc.innerHTML=`<div class="alert alert-warn">
+        ⚠ ESPN returned ${allEvents.length} events but none marked Final yet.<br>
+        <small style="font-family:var(--fm);opacity:0.7">Sample: ${sample}</small>
+      </div>`+sc.innerHTML;
+    }
+
   }catch(e){
     const sc=document.getElementById('scoresContent');
     if(sc)sc.innerHTML=`<div class="alert alert-warn">⚠ Could not reach ESPN. <button class="btn btn-primary btn-sm" style="margin-left:8px" onclick="fetchScores()">Retry</button></div>`;
