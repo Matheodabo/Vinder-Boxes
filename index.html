@@ -616,6 +616,11 @@ let settings={
 
 // ── INIT ──
 function initApp(){
+  // ALWAYS render the preset data immediately so the grid is never blank.
+  // Firebase will update on top of this once it connects.
+  // This guarantees a visible grid even if Firebase is slow or errors.
+  renderGrid();updateStats();renderLeaderboard();
+
   try{
     if(!FIREBASE_CONFIG.apiKey||FIREBASE_CONFIG.apiKey==='YOUR_API_KEY'){initLocal();}
     else{firebase.initializeApp(FIREBASE_CONFIG);db=firebase.firestore();initFirebase();}
@@ -634,28 +639,42 @@ async function initFirebase(){
       // Settings already exist — load them, NEVER show setup modal
       settings={...settings,...cfg.data()};applySettings();
     }
+
+    // Real-time listener — when Firebase data arrives it updates the grid.
+    // We use the full snapshot (not just changes) so we always have a
+    // complete picture of what's in Firestore.
     db.collection('boxes').onSnapshot(snap=>{
-      if(snap.size>0){snap.docChanges().forEach(c=>{if(c.type==='removed')delete owners[c.doc.id];else owners[c.doc.id]=c.doc.data().owners||[];});}
+      if(snap.size>0){
+        // Full replace from Firestore — this is the source of truth
+        const fresh={};
+        snap.forEach(doc=>{fresh[doc.id]=doc.data().owners||[];});
+        // Merge: Firestore wins for any key it has, preset fills any gaps
+        Object.assign(owners,PRESET_OWNERS);
+        Object.assign(owners,fresh);
+      }
+      // Always re-render after any snapshot, even empty ones
       renderGrid();updateStats();renderLeaderboard();
     });
   }catch(e){
-    // Firebase errored — run read-only with preset data, never allow writes or setup
+    // Firebase errored — show preset data in read-only mode.
+    // Never show setup modal. Never blank the grid.
     console.warn('Firebase load error — read-only mode:',e);
-    db=null; // disable all writes until page is refreshed and Firebase reconnects
+    db=null;
+    owners={...PRESET_OWNERS}; // ensure preset is shown
     renderGrid();updateStats();renderLeaderboard();
     const al=document.getElementById('gridAlert');
-    al.className='alert alert-warn';
-    al.innerHTML='⚠ Could not reach database. Showing cached data. Refresh to reconnect. Edit mode disabled.';
+    if(al){
+      al.className='alert alert-warn';
+      al.innerHTML='⚠ Could not reach database — showing preset data. Refresh to reconnect. Edit mode disabled.';
+    }
   }
 }
 
 function initLocal(){
   // Only runs when Firebase is NOT configured at all (no API key in the file).
-  // If Firebase IS configured but errored, initFirebase() handles it above
-  // and never calls this function — so the setup modal is never shown to viewers.
   try{
     const b=localStorage.getItem('vgt_owners'),s=localStorage.getItem('vgt_settings');
-    if(b)owners=JSON.parse(b);
+    if(b)owners={...PRESET_OWNERS,...JSON.parse(b)};
     if(s)settings={...settings,...JSON.parse(s)};
   }catch(e){}
   if(!settings.editPasswordHash){openModal('setupModal');}
