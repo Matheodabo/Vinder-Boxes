@@ -527,20 +527,33 @@ async function initFirebase(){
   try{
     const cfg=await db.collection('settings').doc('config').get();
     if(!cfg.exists){
+      // Truly first time — no settings in Firestore at all, safe to show setup
       document.getElementById('setupAlert').textContent='◈ Firebase connected. Create a password — your boxes will sync across all devices.';
       document.getElementById('setupAlert').className='alert alert-info';
       openModal('setupModal');
     }else{
+      // Settings already exist — load them, NEVER show setup modal
       settings={...settings,...cfg.data()};applySettings();
     }
     db.collection('boxes').onSnapshot(snap=>{
       if(snap.size>0){snap.docChanges().forEach(c=>{if(c.type==='removed')delete owners[c.doc.id];else owners[c.doc.id]=c.doc.data().owners||[];});}
       renderGrid();updateStats();renderLeaderboard();
     });
-  }catch(e){console.warn('Firebase load error:',e);initLocal();}
+  }catch(e){
+    // Firebase errored — run read-only with preset data, never allow writes or setup
+    console.warn('Firebase load error — read-only mode:',e);
+    db=null; // disable all writes until page is refreshed and Firebase reconnects
+    renderGrid();updateStats();renderLeaderboard();
+    const al=document.getElementById('gridAlert');
+    al.className='alert alert-warn';
+    al.innerHTML='⚠ Could not reach database. Showing cached data. Refresh to reconnect. Edit mode disabled.';
+  }
 }
 
 function initLocal(){
+  // Only runs when Firebase is NOT configured at all (no API key in the file).
+  // If Firebase IS configured but errored, initFirebase() handles it above
+  // and never calls this function — so the setup modal is never shown to viewers.
   try{
     const b=localStorage.getItem('vgt_owners'),s=localStorage.getItem('vgt_settings');
     if(b)owners=JSON.parse(b);
@@ -637,13 +650,24 @@ async function saveBox(){
   const{r,c}=editingBox,key=`${r}_${c}`;
   const raw=document.getElementById('boxOwnerInput').value.trim();
   const names=raw?raw.split(',').map(s=>s.trim()).filter(Boolean):[];
+
+  // ── IMMEDIATELY update local owners object so the UI reflects the change
+  // right away, regardless of whether Firebase or local storage is being used.
+  // This means the leaderboard and grid re-render instantly on save without
+  // waiting for a network round-trip or snapshot callback.
+  if(names.length===0)delete owners[key];
+  else owners[key]=names;
+
   if(db){
-    if(names.length===0)await db.collection('boxes').doc(key).delete().catch(console.error);
-    else await db.collection('boxes').doc(key).set({owners:names,row:r,col:c}).catch(console.error);
+    // Write to Firebase in background — UI already updated above
+    if(names.length===0)db.collection('boxes').doc(key).delete().catch(console.error);
+    else db.collection('boxes').doc(key).set({owners:names,row:r,col:c}).catch(console.error);
   }else{
-    if(names.length===0)delete owners[key];else owners[key]=names;
-    localSave();renderGrid();updateStats();renderLeaderboard();
+    localSave();
   }
+
+  // Re-render everything immediately — name changes show up in leaderboard at once
+  renderGrid();updateStats();renderLeaderboard();
   closeModal('boxModal');
 }
 
@@ -920,8 +944,27 @@ async function completeSetup(){
   if(!pw){err.textContent='Please enter a password.';return;}
   if(pw!==c){err.textContent='Passwords do not match.';return;}
   if(pw.length<4){err.textContent='Minimum 4 characters.';return;}
-  settings.editPasswordHash=await sha256(pw);
+
   if(db){
+    // SAFETY CHECK — re-verify that no password exists in Firebase before writing.
+    // This prevents a race condition or private-browser fallback from overwriting
+    // an existing password. If a settings doc already exists, abort immediately.
+    try{
+      const existing=await db.collection('settings').doc('config').get();
+      if(existing.exists&&existing.data().editPasswordHash){
+        err.textContent='';
+        closeModal('setupModal');
+        // Settings already exist — just load them silently
+        settings={...settings,...existing.data()};applySettings();
+        renderGrid();updateStats();renderLeaderboard();
+        return;
+      }
+    }catch(e){
+      err.textContent='Could not verify database. Please refresh and try again.';
+      return;
+    }
+    // Confirmed: no existing password — safe to write
+    settings.editPasswordHash=await sha256(pw);
     const batch=db.batch();
     Object.entries(PRESET_OWNERS).forEach(([key,names])=>{
       const[r,c]=key.split('_').map(Number);
@@ -929,7 +972,10 @@ async function completeSetup(){
     });
     batch.set(db.collection('settings').doc('config'),settings);
     await batch.commit().catch(console.error);
-  }else{localSave();renderGrid();updateStats();renderLeaderboard();}
+  }else{
+    settings.editPasswordHash=await sha256(pw);
+    localSave();renderGrid();updateStats();renderLeaderboard();
+  }
   closeModal('setupModal');
 }
 
