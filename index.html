@@ -414,12 +414,14 @@ const FIREBASE_CONFIG={
     <hr class="divider">
     <div class="section-title">Payout Per Round ($) — paid to winning box owner(s)</div>
     <div class="settings-grid">
+      <div class="form-group"><label class="form-label">First Four</label><input type="number" class="form-input" id="p_f4" min="0"></div>
       <div class="form-group"><label class="form-label">Round of 64</label><input type="number" class="form-input" id="p_r64" min="0"></div>
       <div class="form-group"><label class="form-label">Round of 32</label><input type="number" class="form-input" id="p_r32" min="0"></div>
       <div class="form-group"><label class="form-label">Sweet 16</label><input type="number" class="form-input" id="p_s16" min="0"></div>
       <div class="form-group"><label class="form-label">Elite 8</label><input type="number" class="form-input" id="p_e8" min="0"></div>
       <div class="form-group"><label class="form-label">Final Four</label><input type="number" class="form-input" id="p_ff" min="0"></div>
       <div class="form-group"><label class="form-label">Championship</label><input type="number" class="form-input" id="p_ch" min="0"></div>
+      <div class="form-group"><label class="form-label">Fallback / Other</label><input type="number" class="form-input" id="p_oth" min="0"><div class="form-hint">Used if round can't be detected</div></div>
     </div>
     <hr class="divider">
     <div class="section-title">Change Password</div>
@@ -969,12 +971,14 @@ function toggleAutoRefresh(){arOn=!arOn;document.getElementById('arToggle').clas
 function openSettings(){
   document.getElementById('sAppName').value=document.getElementById('appNameDisplay').textContent;
   document.getElementById('sBoxPrice').value=settings.boxPrice;
+  document.getElementById('p_f4').value=settings.payouts['First Four']||100;
   document.getElementById('p_r64').value=settings.payouts['Round of 64']||100;
   document.getElementById('p_r32').value=settings.payouts['Round of 32']||200;
   document.getElementById('p_s16').value=settings.payouts['Sweet 16']||400;
   document.getElementById('p_e8').value=settings.payouts['Elite 8']||800;
   document.getElementById('p_ff').value=settings.payouts['Final Four']||1600;
   document.getElementById('p_ch').value=settings.payouts['Championship']||4000;
+  document.getElementById('p_oth').value=settings.payouts['Tournament']||100;
   document.getElementById('sCurPw').value='';document.getElementById('sNewPw').value='';
   document.getElementById('sError').textContent='';openModal('settingsModal');
 }
@@ -985,7 +989,19 @@ async function saveSettings(){
   const nn=document.getElementById('sAppName').value.trim();
   if(nn){document.getElementById('appNameDisplay').textContent=nn;document.title=nn;settings.appName=nn;}
   settings.boxPrice=parseFloat(document.getElementById('sBoxPrice').value)||10;
-  settings.payouts={'Round of 64':parseFloat(document.getElementById('p_r64').value)||100,'Round of 32':parseFloat(document.getElementById('p_r32').value)||200,'Sweet 16':parseFloat(document.getElementById('p_s16').value)||400,'Elite 8':parseFloat(document.getElementById('p_e8').value)||800,'Final Four':parseFloat(document.getElementById('p_ff').value)||1600,'Championship':parseFloat(document.getElementById('p_ch').value)||4000,'Tournament':parseFloat(document.getElementById('p_r64').value)||100,'First Four':50};
+  const p_f4=parseFloat(document.getElementById('p_f4').value)||100;
+  const p_r64=parseFloat(document.getElementById('p_r64').value)||100;
+  const p_oth=parseFloat(document.getElementById('p_oth').value)||100;
+  settings.payouts={
+    'First Four':  p_f4,
+    'Round of 64': p_r64,
+    'Round of 32': parseFloat(document.getElementById('p_r32').value)||200,
+    'Sweet 16':    parseFloat(document.getElementById('p_s16').value)||400,
+    'Elite 8':     parseFloat(document.getElementById('p_e8').value)||800,
+    'Final Four':  parseFloat(document.getElementById('p_ff').value)||1600,
+    'Championship':parseFloat(document.getElementById('p_ch').value)||4000,
+    'Tournament':  p_oth,  // catch-all fallback for any unrecognized round
+  };
   if(nw)settings.editPasswordHash=await sha256(nw);
   if(db)await db.collection('settings').doc('config').set(settings).catch(console.error);else localSave();
   updateStats();renderLeaderboard();closeModal('settingsModal');
