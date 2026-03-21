@@ -91,6 +91,8 @@
     .grid-outer{display:flex;width:max-content}
     .row-axis{writing-mode:vertical-rl;transform:rotate(180deg);font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:1.5px;color:var(--textm);display:flex;align-items:center;padding-right:7px;margin-top:36px;font-family:var(--fm)}
     .box-grid{display:grid;grid-template-columns:32px repeat(10,76px);grid-template-rows:32px repeat(10,54px);gap:1px;background:rgba(0,80,140,.22);border:1px solid var(--border-b);border-radius:8px;overflow:hidden;width:max-content}
+    #probGrid{grid-template-columns:28px repeat(10,62px);grid-template-rows:28px repeat(10,46px)}
+    @media(min-width:900px){#probGrid{grid-template-columns:32px repeat(10,76px);grid-template-rows:32px repeat(10,54px)}}
     .cell-corner{background:#020A14}
     .cell-header-col,.cell-header-row{background:linear-gradient(180deg,#0A1F35 0%,#071525 100%);color:var(--bb);display:flex;align-items:center;justify-content:center;font-family:var(--fm);font-size:15px;font-weight:700;text-shadow:0 0 10px rgba(0,200,255,.5)}
     .cell{background:var(--surf1);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;padding:2px 4px;text-align:center;transition:background .1s;position:relative}
@@ -228,6 +230,15 @@
     .ev-bar { height:6px; border-radius:3px; background:linear-gradient(90deg,var(--bp),var(--bb)); display:inline-block; vertical-align:middle; margin-left:6px; }
     .heat-cell-name { font-size:8.5px; font-weight:700; line-height:1.2; max-width:68px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .heat-cell-prob { font-size:7px; font-family:var(--fm); margin-top:2px; opacity:0.8; }
+    /* Analytics mobile */
+    @media(max-width:700px){
+      .charts-row{grid-template-columns:1fr!important}
+      .explain-grid{grid-template-columns:1fr!important}
+    }
+    @media(max-width:600px){
+      .ev-table-wrap{overflow-x:auto}
+      .heatmap-legend{flex-direction:column;gap:6px}
+    }
     @media(max-width:390px){
       .box-grid{grid-template-columns:24px repeat(10,56px);grid-template-rows:24px repeat(10,42px)}
     }
@@ -421,11 +432,11 @@ const FIREBASE_CONFIG={
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px" class="charts-row">
       <div class="card">
         <div class="card-head"><div class="card-title">📈 Winner Score Last Digit Frequency</div></div>
-        <div class="card-body"><canvas id="chartWinner" height="220"></canvas></div>
+        <div class="card-body"><canvas id="chartWinner" style="max-height:220px"></canvas></div>
       </div>
       <div class="card">
         <div class="card-head"><div class="card-title">📈 Loser Score Last Digit Frequency</div></div>
-        <div class="card-body"><canvas id="chartLoser" height="220"></canvas></div>
+        <div class="card-body"><canvas id="chartLoser" style="max-height:220px"></canvas></div>
       </div>
     </div>
 
@@ -438,7 +449,7 @@ const FIREBASE_CONFIG={
           <option value="hits_desc">Most Actual Hits</option>
         </select>
       </div>
-      <div style="overflow-x:auto"><div id="evTable"></div></div>
+      <div style="overflow-x:auto" class="ev-table-wrap"><div id="evTable"></div></div>
     </div>
 
     <div class="card">
@@ -1709,7 +1720,7 @@ function renderExplanation() {
   const fairEV = 200; // box price = fair EV in a zero-sum game
 
   el.innerHTML = `
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px" class="charts-row">
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px;margin-bottom:20px" class="charts-row">
       <div style="background:var(--gdim);border-radius:8px;padding:14px;border-left:3px solid var(--green)">
         <div class="section-title" style="color:var(--green);margin-bottom:8px">🏆 HIGHEST EV BOXES</div>
         ${best3.map((b,i) => `
@@ -1740,7 +1751,7 @@ function renderExplanation() {
       </div>
     </div>
 
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:20px" class="explain-grid">
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin-bottom:20px" class="explain-grid">
       <div style="background:var(--surf2);border-radius:8px;padding:14px;border:1px solid var(--border)">
         <div style="font-size:20px;margin-bottom:6px">🏀</div>
         <div style="font-weight:700;font-size:13px;color:var(--text);margin-bottom:6px">Why digit 0 wins most</div>
@@ -1763,11 +1774,7 @@ function renderExplanation() {
       <div style="font-size:12px;color:var(--texts);line-height:1.8">
         <strong style="color:var(--bb)">Data source:</strong> Real NCAA tournament final scores fetched directly from the ESPN API for tournament years 2000–2025 (${histGamesTotal > 0 ? histGamesTotal.toLocaleString() + ' games across ' + histYearsLoaded.length + ' seasons' : 'historical research values used — ESPN API returned limited historical data'}).<br><br>
         <strong style="color:var(--bb)">Why 2000–2025 and not earlier:</strong> The 3-point line and modern pace-of-play fundamentally changed scoring distributions. Pre-2000 basketball had slower tempo and fewer 3-point attempts — using only the modern era makes these frequencies more predictive of 2026.<br><br>
-        <strong style="color:var(--bb)">Why not Monte Carlo:</strong> Monte Carlo requires verified play-by-play inputs (shot rates, pace, fouling distributions) which themselves need real data. Direct empirical counting from real games has no model risk and is fully verifiable.<br><br>
-        <strong style="color:var(--bb)">The formula:</strong>
-        <code style="background:var(--surf3);padding:4px 10px;border-radius:4px;font-family:var(--fm);font-size:11px;display:inline-block;margin:6px 0;color:var(--bb)">P(box) = P(winner ends in W) × P(loser ends in L)</code>
-        <code style="background:var(--surf3);padding:4px 10px;border-radius:4px;font-family:var(--fm);font-size:11px;display:inline-block;margin:4px 0;color:var(--bb)">EV($) = Σ P(box) × games_in_round × payout_per_round</code>
-        Summed across all 6 rounds. The average EV across all 100 boxes equals exactly the $200 box price — confirming the zero-sum property.
+        <strong style="color:var(--bb)">Zero-sum confirmation:</strong> The average expected value across all 100 boxes equals exactly the $200 box price — every dollar paid in is redistributed back out. The boxes are equal in cost but unequal in probability.
       </div>
     </div>
   `;
