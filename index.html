@@ -1629,16 +1629,17 @@ function renderEVTable() {
       const wd = WINNER_DIGITS[c], ld = LOSER_DIGITS[r];
       const prob = boxTheorProb(wd, ld);
       // Expected wins across the full 63-game tournament
-      const expHits = prob * 63;
+      const expHits = prob * 67;
       // Expected $ value across all rounds (weighted by games per round and payout)
       const roundData = [
-        { games: 32, pay: settings.payouts['Round of 64'] || 100 },
-        { games: 16, pay: settings.payouts['Round of 32'] || 200 },
-        { games: 8,  pay: settings.payouts['Sweet 16'] || 400 },
-        { games: 4,  pay: settings.payouts['Elite 8'] || 800 },
-        { games: 2,  pay: settings.payouts['Final Four'] || 1600 },
-        { games: 1,  pay: settings.payouts['Championship'] || 4000 },
-      ];
+        { games: 4,  pay: settings.payouts['First Four']  || 100  },  // First Four (2011+)
+        { games: 32, pay: settings.payouts['Round of 64'] || 100  },
+        { games: 16, pay: settings.payouts['Round of 32'] || 200  },
+        { games: 8,  pay: settings.payouts['Sweet 16']    || 400  },
+        { games: 4,  pay: settings.payouts['Elite 8']     || 800  },
+        { games: 2,  pay: settings.payouts['Final Four']  || 1600 },
+        { games: 1,  pay: settings.payouts['Championship']|| 4000 },
+      ];  // 67 total games (modern format since 2011)
       const ev = roundData.reduce((s, rd) => s + prob * rd.games * rd.pay, 0);
       const key = `${r}_${c}`;
       const hitKey = `${wd}_${ld}`;
@@ -1661,7 +1662,7 @@ function renderEVTable() {
     <thead><tr>
       <th>#</th><th>Box</th><th>Owner(s)</th>
       <th>Theor. Prob</th><th>Expected Value</th>
-      <th>Exp. Wins (63 games)</th><th>Actual Hits</th><th>Over/Under</th>
+      <th>Exp. Wins (67 games)</th><th>Actual Hits</th><th>Over/Under</th>
     </tr></thead><tbody>`;
 
   rows.forEach((row, i) => {
@@ -1703,13 +1704,14 @@ function renderExplanation() {
       const wd = WINNER_DIGITS[c], ld = LOSER_DIGITS[r];
       const prob = boxTheorProb(wd, ld);
       const roundData = [
-        { games: 32, pay: settings.payouts['Round of 64'] || 100 },
-        { games: 16, pay: settings.payouts['Round of 32'] || 200 },
-        { games: 8,  pay: settings.payouts['Sweet 16'] || 400 },
-        { games: 4,  pay: settings.payouts['Elite 8'] || 800 },
-        { games: 2,  pay: settings.payouts['Final Four'] || 1600 },
-        { games: 1,  pay: settings.payouts['Championship'] || 4000 },
-      ];
+        { games: 4,  pay: settings.payouts['First Four']  || 100  },  // First Four (2011+)
+        { games: 32, pay: settings.payouts['Round of 64'] || 100  },
+        { games: 16, pay: settings.payouts['Round of 32'] || 200  },
+        { games: 8,  pay: settings.payouts['Sweet 16']    || 400  },
+        { games: 4,  pay: settings.payouts['Elite 8']     || 800  },
+        { games: 2,  pay: settings.payouts['Final Four']  || 1600 },
+        { games: 1,  pay: settings.payouts['Championship']|| 4000 },
+      ];  // 67 total games (modern format since 2011)
       const ev = roundData.reduce((s, rd) => s + prob * rd.games * rd.pay, 0);
       rows.push({ wd, ld, prob, ev, owners: owners[`${r}_${c}`] || [] });
     }
