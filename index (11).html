@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>Vinder Group Box Tracker</title><!-- APP NAME CHANGE HERE -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@300;400;600;700;800;900&family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg:#030C18;--surf1:#071525;--surf2:#0C1E30;--surf3:#112438;--surf4:#162D44;
+      --border:rgba(0,160,230,0.13);--border-b:rgba(0,180,255,0.35);
+      --bp:#0066BB;--bm:#0099DD;--bb:#00C8FF;--bg2:rgba(0,200,255,0.22);--bg3:rgba(0,200,255,0.08);
+      --text:#E4F2FF;--texts:#7EAACF;--textm:#3E6888;
+      --green:#00E5A0;--gdim:rgba(0,229,160,0.12);--gglow:rgba(0,229,160,0.35);
+      --red:#FF3D5A;--rdim:rgba(255,61,90,0.12);
+      --amber:#FFB020;--adim:rgba(255,176,32,0.12);
+      --wglow:rgba(0,229,160,0.4);--lglow:rgba(255,176,32,0.45);
+      --fh:'Exo 2',sans-serif;--fb:'Outfit',sans-serif;--fm:'JetBrains Mono',monospace;
+    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    html{scroll-behavior:smooth}
+    body{font-family:var(--fb);background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;-webkit-font-smoothing:antialiased}
+    body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.04) 2px,rgba(0,0,0,0.04) 4px);pointer-events:none;z-index:0}
+    body>*{position:relative;z-index:1}
+    .bg-dots{position:fixed;inset:0;background-image:radial-gradient(rgba(0,160,230,0.06) 1px,transparent 1px);background-size:28px 28px;pointer-events:none;z-index:0}
+
+    /* HEADER */
+    .header{background:linear-gradient(180deg,#050F1D 0%,#071525 100%);border-bottom:1px solid var(--border-b);padding:0 22px;height:62px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:500;backdrop-filter:blur(12px);box-shadow:0 0 40px rgba(0,150,220,0.08)}
+    .header-left{display:flex;align-items:center;gap:13px}
+    .brand-mark{width:38px;height:38px;border-radius:8px;background:linear-gradient(135deg,var(--bp),var(--bb));display:flex;align-items:center;justify-content:center;font-family:var(--fh);font-size:13px;color:white;font-weight:900;box-shadow:0 0 16px rgba(0,200,255,0.3);flex-shrink:0}
+    .app-name{font-family:var(--fh);font-size:17px;font-weight:800;color:var(--text);line-height:1}/* APP NAME CHANGE — edit .app-name span in HTML */
+    .app-sub{font-size:9px;color:var(--bb);letter-spacing:2px;text-transform:uppercase;margin-top:3px;font-family:var(--fm);opacity:0.65}
+    .header-right{display:flex;align-items:center;gap:8px}
+    .edit-badge{background:linear-gradient(90deg,var(--bp),var(--bm));color:white;padding:3px 10px;border-radius:4px;font-size:9px;font-weight:700;font-family:var(--fm);letter-spacing:1px;display:none;box-shadow:0 0 12px rgba(0,150,220,0.5)}
+    .edit-badge.on{display:block}
+
+    /* BUTTONS */
+    .btn{padding:7px 14px;border-radius:6px;border:none;cursor:pointer;font-family:var(--fb);font-size:12px;font-weight:600;transition:all .15s;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;letter-spacing:.2px}
+    .btn:active{transform:scale(.96)}
+    .btn-ghost{background:rgba(0,160,230,.1);border:1px solid var(--border-b);color:var(--bb)}
+    .btn-ghost:hover{background:rgba(0,160,230,.2)}
+    .btn-primary{background:linear-gradient(135deg,var(--bp),var(--bm));color:white;box-shadow:0 0 14px rgba(0,150,220,.3)}
+    .btn-primary:hover{box-shadow:0 0 20px rgba(0,150,220,.5);filter:brightness(1.1)}
+    .btn-danger{background:var(--rdim);border:1px solid var(--red);color:var(--red)}
+    .btn-danger:hover{background:rgba(255,61,90,.2)}
+    .btn-outline{background:transparent;border:1px solid var(--border-b);color:var(--texts)}
+    .btn-outline:hover{border-color:var(--bb);color:var(--bb)}
+    .btn-sm{padding:5px 11px;font-size:11px}
+
+    /* TABS */
+    .tabs{background:var(--surf1);border-bottom:1px solid var(--border);display:flex;padding:0 18px;gap:0;overflow-x:auto}
+    .tabs::-webkit-scrollbar{display:none}
+    .tab{padding:11px 16px;color:var(--textm);cursor:pointer;font-size:12px;font-weight:600;border-bottom:2px solid transparent;transition:all .15s;user-select:none;white-space:nowrap;letter-spacing:.4px;font-family:var(--fb);display:flex;align-items:center;gap:6px}
+    .tab:hover{color:var(--texts)}
+    .tab.active{color:var(--bb);border-bottom-color:var(--bb);text-shadow:0 0 12px rgba(0,200,255,.5)}
+
+    /* LAYOUT */
+    .content{max-width:1500px;margin:0 auto;padding:18px}
+    .tab-panel{display:none}
+    .tab-panel.active{display:block}
+
+    /* CARDS */
+    .card{background:var(--surf1);border-radius:12px;border:1px solid var(--border);margin-bottom:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.3)}
+    .card-head{padding:14px 18px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:linear-gradient(180deg,var(--surf2) 0%,var(--surf1) 100%)}
+    .card-title{font-family:var(--fh);font-size:14px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:8px;letter-spacing:.3px}
+    .card-body{padding:16px 18px}
+
+    /* STATS */
+    .stat-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(135px,1fr));gap:10px;margin-bottom:16px}
+    .stat-card{background:var(--surf1);border-radius:10px;padding:13px 15px;border:1px solid var(--border);position:relative;overflow:hidden;transition:border-color .2s}
+    .stat-card:hover{border-color:var(--border-b)}
+    .stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--bp),var(--bb))}
+    .stat-label{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:1.5px;color:var(--textm);margin-bottom:7px;font-family:var(--fm)}
+    .stat-value{font-size:24px;font-weight:800;font-family:var(--fh);color:var(--text);line-height:1}
+    .stat-card.green::before{background:linear-gradient(90deg,#007A50,var(--green))}
+    .stat-card.green .stat-value{color:var(--green)}
+    .stat-card.blue-b::before{background:linear-gradient(90deg,var(--bp),var(--bb))}
+    .stat-card.red::before{background:linear-gradient(90deg,#880020,var(--red))}
+    .stat-card.red .stat-value{color:var(--red)}
+
+    /* BOX GRID */
+    .grid-wrap{overflow-x:auto;padding-bottom:6px}
+    .grid-wrap::-webkit-scrollbar{height:4px}
+    .grid-wrap::-webkit-scrollbar-track{background:var(--surf2)}
+    .grid-wrap::-webkit-scrollbar-thumb{background:var(--bp);border-radius:3px}
+    .axis-label{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:1.5px;color:var(--textm);text-align:center;margin-bottom:5px;font-family:var(--fm)}
+    .grid-outer{display:flex;width:max-content}
+    .row-axis{writing-mode:vertical-rl;transform:rotate(180deg);font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:1.5px;color:var(--textm);display:flex;align-items:center;padding-right:7px;margin-top:36px;font-family:var(--fm)}
+    .box-grid{display:grid;grid-template-columns:32px repeat(10,76px);grid-template-rows:32px repeat(10,54px);gap:1px;background:rgba(0,80,140,.22);border:1px solid var(--border-b);border-radius:8px;overflow:hidden;width:max-content}
+    .cell-corner{background:#020A14}
+    .cell-header-col,.cell-header-row{background:linear-gradient(180deg,#0A1F35 0%,#071525 100%);color:var(--bb);display:flex;align-items:center;justify-content:center;font-family:var(--fm);font-size:15px;font-weight:700;text-shadow:0 0 10px rgba(0,200,255,.5)}
+    .cell{background:var(--surf1);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;padding:2px 4px;text-align:center;transition:background .1s;position:relative}
+    .cell:hover{background:var(--surf3);z-index:2}
+    .cell.owned{background:linear-gradient(135deg,#071E34 0%,#0A2540 100%)}
+    .cell.live-winner{background:linear-gradient(135deg,#1A1000 0%,#221500 100%);box-shadow:inset 0 0 14px var(--lglow),0 0 12px var(--lglow);z-index:3}
+    .cell.final-winner{background:linear-gradient(135deg,#001A10 0%,#002016 100%);box-shadow:inset 0 0 16px var(--wglow),0 0 14px var(--wglow);z-index:3}
+    .cell.final-winner::after{content:'✦';position:absolute;top:2px;right:3px;font-size:7px;color:var(--green)}
+    .cell-name{font-size:9px;font-weight:700;color:var(--text);line-height:1.2;max-width:68px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--fb)}
+    .cell.live-winner .cell-name{color:var(--amber)}
+    .cell.final-winner .cell-name{color:var(--green)}
+    .cell-digits{font-size:7.5px;color:var(--textm);margin-top:2px;font-family:var(--fm)}
+    .cell-dot{color:var(--textm);font-size:16px;opacity:.18}
+    .legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;font-size:11px;color:var(--texts)}
+    .legend-item{display:flex;align-items:center;gap:6px}
+    .legend-dot{width:12px;height:12px;border-radius:3px;flex-shrink:0}
+
+    /* PILLS */
+    .pills{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px}
+    .pill{padding:4px 13px;border-radius:4px;font-size:10px;font-weight:600;cursor:pointer;border:1px solid var(--border);color:var(--textm);background:var(--surf2);transition:all .15s;font-family:var(--fm);letter-spacing:.3px}
+    .pill:hover:not(.active){border-color:var(--border-b);color:var(--texts)}
+    .pill.active{background:rgba(0,160,230,.15);color:var(--bb);border-color:var(--bb);text-shadow:0 0 8px rgba(0,200,255,.4)}
+
+    /* GAME CARDS */
+    .games-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(265px,1fr));gap:11px}
+    .game-card{border-radius:10px;border:1px solid var(--border);overflow:hidden;background:var(--surf1);transition:transform .15s,border-color .15s,box-shadow .15s}
+    .game-card:hover{transform:translateY(-2px);border-color:var(--border-b);box-shadow:0 6px 20px rgba(0,0,0,.3)}
+    .gc-head{background:var(--surf2);padding:6px 12px;font-size:9px;font-weight:600;font-family:var(--fm);letter-spacing:.5px;display:flex;justify-content:space-between;align-items:center;color:var(--textm);border-bottom:1px solid var(--border)}
+    .status-live{background:var(--rdim);border:1px solid var(--red);color:var(--red);padding:2px 7px;border-radius:3px;font-size:9px;font-weight:700;animation:blink 1.4s infinite;font-family:var(--fm)}
+    .status-final{background:var(--gdim);border:1px solid var(--green);color:var(--green);padding:2px 7px;border-radius:3px;font-size:9px;font-family:var(--fm)}
+    .status-pre{background:var(--surf3);color:var(--textm);padding:2px 7px;border-radius:3px;font-size:9px;font-family:var(--fm)}
+    @keyframes blink{0%,100%{opacity:1}50%{opacity:.5}}
+    .gc-body{padding:12px}
+    .team-line{display:flex;align-items:center;justify-content:space-between;padding:5px 0}
+    .team-line+.team-line{border-top:1px solid var(--border)}
+    .team-seed-name{display:flex;align-items:baseline;gap:5px}
+    .seed{font-size:9px;color:var(--textm);font-weight:600;font-family:var(--fm)}
+    .tname{font-weight:600;font-size:13px;font-family:var(--fb)}
+    .tscore{font-size:22px;font-weight:800;font-family:var(--fm);color:var(--text)}
+    .team-line.leader .tname{color:var(--text)}
+    .team-line.trailer .tname{color:var(--textm)}
+    .team-line.trailer .tscore{color:var(--textm);font-size:18px}
+    .box-hit{margin-top:9px;padding:7px 10px;border-radius:6px;background:var(--surf2);border-left:2px solid var(--bm)}
+    .box-hit.won{border-color:var(--green);background:var(--gdim)}
+    .box-hit.live{border-color:var(--amber);background:var(--adim)}
+    .box-hit-label{font-size:8px;font-weight:600;text-transform:uppercase;letter-spacing:1.2px;color:var(--textm);font-family:var(--fm)}
+    .box-hit-name{font-size:12px;font-weight:700;color:var(--text);margin-top:2px}
+    .box-hit.won .box-hit-name{color:var(--green)}
+    .box-hit.live .box-hit-name{color:var(--amber)}
+    .box-hit-digits{font-size:9px;color:var(--textm);font-family:var(--fm)}
+
+    /* LEADERBOARD */
+    .lb-table{width:100%;border-collapse:collapse}
+    .lb-table th{background:var(--surf2);color:var(--textm);padding:9px 14px;text-align:left;font-size:9px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;white-space:nowrap;font-family:var(--fm);border-bottom:1px solid var(--border-b)}
+    .lb-table td{padding:10px 14px;border-bottom:1px solid var(--border);font-size:13px;font-family:var(--fb)}
+    .lb-table tr:hover td{background:var(--surf2)}
+    .lb-table tr:last-child td{border-bottom:none}
+    .rank-badge{width:27px;height:27px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;font-family:var(--fm)}
+    .r1{background:linear-gradient(135deg,var(--bp),var(--bb));color:white;box-shadow:0 0 10px rgba(0,200,255,.4)}
+    .r2{background:rgba(0,160,230,.2);color:var(--bb);border:1px solid var(--border-b)}
+    .r3{background:rgba(0,100,180,.15);color:var(--texts);border:1px solid var(--border)}
+    .r-other{background:transparent;color:var(--textm)}
+    .mpos{color:var(--green);font-weight:700;font-family:var(--fm)}
+    .mneg{color:var(--red);font-weight:700;font-family:var(--fm)}
+    .mneu{color:var(--textm);font-family:var(--fm)}
+    .mpaid{color:var(--textm);font-family:var(--fm)}
+    .mono{font-family:var(--fm)}
+
+    /* TOGGLE */
+    .toggle-wrap{display:flex;align-items:center;gap:7px;cursor:pointer;font-size:10px;font-weight:600;color:var(--texts);font-family:var(--fm)}
+    .toggle{width:36px;height:20px;background:var(--surf3);border:1px solid var(--border);border-radius:10px;position:relative;cursor:pointer;transition:all .2s;flex-shrink:0}
+    .toggle.on{background:rgba(0,160,230,.25);border-color:var(--bb);box-shadow:0 0 8px var(--bg2)}
+    .toggle::after{content:'';width:14px;height:14px;background:var(--textm);border-radius:50%;position:absolute;top:2px;left:2px;transition:all .2s}
+    .toggle.on::after{left:18px;background:var(--bb);box-shadow:0 0 6px var(--bg2)}
+
+    /* MISC */
+    .refresh-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+    .refresh-ts{font-size:10px;color:var(--textm);font-family:var(--fm)}
+    .alert{padding:9px 13px;border-radius:7px;margin-bottom:12px;font-size:12px;font-weight:500;display:flex;align-items:flex-start;gap:9px;border-left:3px solid}
+    .alert-info{background:rgba(0,120,200,.1);border-color:var(--bm);color:var(--bb)}
+    .alert-warn{background:var(--adim);border-color:var(--amber);color:var(--amber)}
+    .alert-ok{background:var(--gdim);border-color:var(--green);color:var(--green)}
+    .section-title{font-family:var(--fm);font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:1.5px;color:var(--textm);margin-bottom:9px}
+    .divider{border:none;border-top:1px solid var(--border);margin:16px 0}
+    .empty{text-align:center;padding:40px 24px;color:var(--textm)}
+    .empty-icon{font-size:40px;margin-bottom:10px;opacity:.4}
+    .empty-title{font-size:15px;font-weight:700;margin-bottom:4px;color:var(--texts);font-family:var(--fh)}
+    .empty-text{font-size:12px}
+    .spin{display:inline-block;width:13px;height:13px;border:2px solid rgba(0,200,255,.2);border-top:2px solid var(--bb);border-radius:50%;animation:spinning .7s linear infinite}
+    @keyframes spinning{to{transform:rotate(360deg)}}
+    .live-dot{display:inline-block;width:7px;height:7px;background:var(--red);border-radius:50%;animation:blink 1.2s infinite;box-shadow:0 0 6px var(--red)}
+
+    /* MODALS */
+    .overlay{display:none;position:fixed;inset:0;background:rgba(0,5,12,.75);z-index:1000;align-items:center;justify-content:center;padding:14px;backdrop-filter:blur(4px)}
+    .overlay.open{display:flex}
+    .modal{background:var(--surf2);border:1px solid var(--border-b);border-radius:14px;padding:24px;width:100%;max-width:430px;box-shadow:0 24px 64px rgba(0,0,0,.6),inset 0 1px 0 rgba(0,200,255,.07);animation:sup .2s ease}
+    .modal-lg{max-width:550px}
+    @keyframes sup{from{transform:translateY(14px);opacity:0}to{transform:translateY(0);opacity:1}}
+    .modal-title{font-family:var(--fh);font-size:18px;font-weight:800;color:var(--text);margin-bottom:4px}
+    .modal-sub{font-size:12px;color:var(--textm);margin-bottom:18px}
+    .form-group{margin-bottom:13px}
+    .form-label{display:block;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--textm);margin-bottom:5px;font-family:var(--fm)}
+    .form-input{width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:7px;font-family:var(--fb);font-size:14px;color:var(--text);background:var(--surf1);outline:none;transition:border-color .15s,box-shadow .15s}
+    .form-input:focus{border-color:var(--bb);box-shadow:0 0 0 3px var(--bg3)}
+    .form-input::placeholder{color:var(--textm)}
+    select.form-input option{background:var(--surf2)}
+    .form-hint{font-size:10px;color:var(--textm);margin-top:3px;font-family:var(--fm)}
+    .form-error{font-size:11px;color:var(--red);margin-top:4px;font-weight:600}
+    .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:18px}
+    .settings-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:10px}
+
+    /* MOBILE */
+    @media(max-width:600px){
+      .header{padding:0 13px;height:54px}
+      .app-name{font-size:14px}
+      .app-sub{display:none}
+      .content{padding:10px}
+      .tabs{padding:0 6px}
+      .tab{padding:9px 11px;font-size:11px}
+      .stat-row{grid-template-columns:1fr 1fr}
+      .stat-value{font-size:20px}
+      .modal{padding:18px}
+      .games-grid{grid-template-columns:1fr}
+      .card-head{flex-direction:column;align-items:flex-start;gap:8px}
+      .refresh-bar{width:100%}
+      .settings-grid{grid-template-columns:1fr 1fr}
+      .lb-table th,.lb-table td{padding:8px 9px;font-size:11px}
+      .box-grid{grid-template-columns:28px repeat(10,62px);grid-template-rows:28px repeat(10,46px)}
+      .cell-header-col,.cell-header-row{font-size:12px}
+      .cell-name{font-size:8px;max-width:54px}
+      .cell-digits{font-size:7px}
+    }
+    .charts-row { grid-template-columns: 1fr 1fr; }
+    @media(max-width:700px){ .charts-row { grid-template-columns: 1fr; } }
+    .ev-bar { height:6px; border-radius:3px; background:linear-gradient(90deg,var(--bp),var(--bb)); display:inline-block; vertical-align:middle; margin-left:6px; }
+    .heat-cell-name { font-size:8.5px; font-weight:700; line-height:1.2; max-width:68px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .heat-cell-prob { font-size:7px; font-family:var(--fm); margin-top:2px; opacity:0.8; }
+    @media(max-width:390px){
+      .box-grid{grid-template-columns:24px repeat(10,56px);grid-template-rows:24px repeat(10,42px)}
+    }
+  </style>
+</head>
+<body>
+<div class="bg-dots"></div>
+
+<!-- FIREBASE CONFIG — STEP 2: Replace values below -->
+<script>
+const FIREBASE_CONFIG={
+  apiKey:"AIzaSyAZNTcmhss75N1G9dZ5cvuRsLSPl4Fa6KE",
+  authDomain:"march-madness---vinder-group.firebaseapp.com",
+  projectId:"march-madness---vinder-group",
+  storageBucket:"march-madness---vinder-group.firebasestorage.app",
+  messagingSenderId:"581971907257",
+  appId:"1:581971907257:web:c9d615139ac2d30c038168"
+};
+</script>
+
+<header class="header">
+  <div class="header-left">
+    <div class="brand-mark">VG</div>
+    <div>
+      <div class="app-name" id="appNameDisplay">Vinder Group Box Tracker</div><!-- APP NAME CHANGE HERE -->
+      <div class="app-sub">March Madness 2026</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <span class="edit-badge" id="editBadge">EDIT MODE</span>
+    <button class="btn btn-ghost btn-sm" id="editBtn" onclick="toggleEditMode()">🔐 Edit</button>
+    <button class="btn btn-ghost btn-sm" onclick="openSettings()">⚙</button>
+  </div>
+</header>
+
+<nav class="tabs">
+  <div class="tab active" data-tab="boxes" onclick="switchTab('boxes')">🎲 Box Grid</div>
+  <div class="tab" data-tab="scores" onclick="switchTab('scores')">🏀 Scores</div>
+  <div class="tab" data-tab="live" onclick="switchTab('live')"><span class="live-dot"></span>&nbsp;Live</div>
+  <div class="tab" data-tab="leaderboard" onclick="switchTab('leaderboard')">🏆 Leaderboard</div>
+  <div class="tab" data-tab="analytics" onclick="switchTab('analytics')">📊 Analytics</div>
+</nav>
+
+<main class="content">
+
+  <!-- BOX GRID TAB -->
+  <div class="tab-panel active" id="tab-boxes">
+    <div class="stat-row">
+      <div class="stat-card"><div class="stat-label">Boxes Filled</div><div class="stat-value" id="sFilled">—</div></div>
+      <div class="stat-card green"><div class="stat-label">Boxes Won</div><div class="stat-value" id="sWins">0</div></div>
+      <div class="stat-card blue-b"><div class="stat-label">Prize Pool</div><div class="stat-value" id="sPot">—</div></div>
+      <div class="stat-card"><div class="stat-label">Games Done</div><div class="stat-value" id="sGames">0</div></div>
+    </div>
+    <div class="card" style="box-shadow:0 4px 24px rgba(0,0,0,.3),0 0 0 1px var(--border),inset 0 1px 0 rgba(0,200,255,.05)">
+      <div class="card-head">
+        <div class="card-title">📐 10×10 Box Grid</div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-outline btn-sm" onclick="resetHighlights()">Clear Highlights</button>
+          <button class="btn btn-primary btn-sm" onclick="fetchScores()">↻ Sync Scores</button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="alert alert-info" id="gridAlert">◈ <strong>View Only</strong> — Click Edit in the header (password required) to modify box owners.</div>
+        <div class="axis-label">← WINNING TEAM SCORE (LAST DIGIT, LEFT → RIGHT) →</div>
+        <div class="grid-wrap">
+          <div class="grid-outer">
+            <div class="row-axis">← LOSING TEAM SCORE (LAST DIGIT) →</div>
+            <div id="boxGrid" class="box-grid"></div>
+          </div>
+        </div>
+        <div class="legend">
+          <div class="legend-item"><div class="legend-dot" style="background:var(--surf1);border:1px solid var(--border)"></div>Empty</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#0A2540;border:1px solid var(--bp)"></div>Assigned</div>
+          <div class="legend-item"><div class="legend-dot" style="background:var(--adim);border:1px solid var(--amber);box-shadow:0 0 5px var(--lglow)"></div>Live Match</div>
+          <div class="legend-item"><div class="legend-dot" style="background:var(--gdim);border:1px solid var(--green);box-shadow:0 0 5px var(--wglow)"></div>Final Win ✦</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCORES TAB -->
+  <div class="tab-panel" id="tab-scores">
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title">🏀 March Madness 2026 — All Games</div>
+        <div class="refresh-bar">
+          <span class="refresh-ts" id="refreshTs">—</span>
+          <label class="toggle-wrap"><div class="toggle" id="arToggle" onclick="toggleAutoRefresh()"></div>Auto 30s</label>
+          <button class="btn btn-primary btn-sm" id="refreshBtn" onclick="fetchScores()">↻ Refresh</button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="pills">
+          <div class="pill active" onclick="setFilter('all',this)">ALL</div>
+          <div class="pill" onclick="setFilter('live',this)">LIVE</div>
+          <div class="pill" onclick="setFilter('final',this)">FINAL</div>
+          <div class="pill" onclick="setFilter('pre',this)">UPCOMING</div>
+        </div>
+        <div id="scoresContent"><div class="empty"><div class="empty-icon">⏳</div><div class="empty-title">Loading…</div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LIVE TAB -->
+  <div class="tab-panel" id="tab-live">
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title"><span class="live-dot"></span>&nbsp; Live Games — Box Watch</div>
+        <button class="btn btn-primary btn-sm" onclick="fetchScores()">↻ Refresh</button>
+      </div>
+      <div class="card-body">
+        <div class="alert alert-info">◈ Shows all in-progress games and which box is currently winning. Update on each refresh.</div>
+        <div id="liveContent"><div class="empty"><div class="empty-icon">🏀</div><div class="empty-title">No live games right now</div><div class="empty-text">Check back during game time.</div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LEADERBOARD TAB -->
+  <div class="tab-panel" id="tab-leaderboard">
+    <div class="stat-row">
+      <div class="stat-card"><div class="stat-label">Total Players</div><div class="stat-value" id="lbPlayers">—</div></div>
+      <div class="stat-card green"><div class="stat-label">Top Winner</div><div class="stat-value" id="lbTop" style="font-size:13px;padding-top:5px;font-family:var(--fb)">—</div></div>
+      <div class="stat-card blue-b"><div class="stat-label">Total Paid Out</div><div class="stat-value" id="lbPaidOut">$0</div></div>
+      <div class="stat-card red"><div class="stat-label">Biggest Loss</div><div class="stat-value" id="lbWorst" style="font-size:13px;padding-top:5px;font-family:var(--fb)">—</div></div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title">🏆 Player Rankings</div>
+        <select class="form-input" style="width:auto;padding:5px 10px;font-size:10px;font-family:var(--fm)" onchange="lbSort=this.value;renderLeaderboard()">
+          <option value="net">Net Winnings</option>
+          <option value="wins">Most Wins</option>
+          <option value="boxes">Most Boxes</option>
+          <option value="earned">Total Earned</option>
+        </select>
+      </div>
+      <div style="overflow-x:auto"><div id="lbContent"><div class="empty"><div class="empty-icon">📊</div><div class="empty-title">No data yet</div></div></div></div>
+    </div>
+  </div>
+
+  <!-- ANALYTICS TAB -->
+  <div class="tab-panel" id="tab-analytics">
+
+    <div class="card">
+      <div class="card-head" style="flex-direction:column;align-items:flex-start;gap:8px">
+        <div style="display:flex;justify-content:space-between;width:100%;align-items:center;flex-wrap:wrap;gap:8px">
+          <div class="card-title">📊 Box Probability Heatmap</div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <span style="font-size:10px;color:var(--textm);font-family:var(--fm)">COLOR = EMPIRICAL WIN PROBABILITY</span>
+            <div style="display:flex;gap:4px;align-items:center">
+              <div style="width:60px;height:10px;border-radius:3px;background:linear-gradient(90deg,#071525,#0d3060,#0066BB,#00C8FF,#00E5A0)"></div>
+              <span style="font-size:9px;color:var(--textm);font-family:var(--fm)">LOW → HIGH EV</span>
+            </div>
+          </div>
+        </div>
+        <div id="histStatus" style="display:none;font-size:11px;font-family:var(--fm);color:var(--amber);padding:6px 10px;background:var(--adim);border-radius:5px;border-left:2px solid var(--amber);width:100%">
+          ⏳ Fetching historical NCAA tournament data from ESPN (2000–2025)…
+        </div>
+        <div id="histSourceBadge" style="display:none;font-size:10px;font-family:var(--fm);color:var(--green);padding:5px 10px;background:var(--gdim);border-radius:5px;border-left:2px solid var(--green);width:100%"></div>
+      </div>
+      <div class="card-body">
+        <div class="alert alert-info" style="margin-bottom:14px">
+          ◈ Each box is colored by its <strong>empirical probability</strong> of winning any given game, computed from real NCAA tournament final scores fetched live from ESPN (2000–2025). Green = statistically more likely to win, dark = less likely. Names shown are the current owners.
+        </div>
+        <div class="axis-label">← WINNING TEAM SCORE (LAST DIGIT) →</div>
+        <div class="grid-wrap">
+          <div class="grid-outer">
+            <div class="row-axis">← LOSING TEAM SCORE (LAST DIGIT) →</div>
+            <div id="probGrid" class="box-grid"></div>
+          </div>
+        </div>
+        <div style="margin-top:14px;display:flex;gap:20px;flex-wrap:wrap">
+          <div style="font-size:11px;color:var(--texts)">
+            <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#071525;margin-right:5px;border:1px solid var(--border)"></span>Lowest EV (&lt;0.8%)
+          </div>
+          <div style="font-size:11px;color:var(--texts)">
+            <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#0d3060;margin-right:5px"></span>Below avg (0.8–1.0%)
+          </div>
+          <div style="font-size:11px;color:var(--texts)">
+            <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#0066BB;margin-right:5px"></span>Average (~1.0%)
+          </div>
+          <div style="font-size:11px;color:var(--texts)">
+            <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#00C8FF;margin-right:5px"></span>Above avg (1.0–1.3%)
+          </div>
+          <div style="font-size:11px;color:var(--texts)">
+            <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#00E5A0;margin-right:5px"></span>Highest EV (&gt;1.3%)
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px" class="charts-row">
+      <div class="card">
+        <div class="card-head"><div class="card-title">📈 Winner Score Last Digit Frequency</div></div>
+        <div class="card-body"><canvas id="chartWinner" height="220"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><div class="card-title">📈 Loser Score Last Digit Frequency</div></div>
+        <div class="card-body"><canvas id="chartLoser" height="220"></canvas></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title">🎯 Box Rankings by Expected Value</div>
+        <select class="form-input" style="width:auto;padding:5px 10px;font-size:10px;font-family:var(--fm)" id="evSortSel" onchange="renderEVTable()">
+          <option value="ev_desc">Highest EV First</option>
+          <option value="ev_asc">Lowest EV First</option>
+          <option value="hits_desc">Most Actual Hits</option>
+        </select>
+      </div>
+      <div style="overflow-x:auto"><div id="evTable"></div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><div class="card-title">💡 How Box Probabilities Work</div></div>
+      <div class="card-body" id="explanationBody"></div>
+    </div>
+
+  </div>
+
+
+</main>
+
+<!-- MODALS -->
+<div class="overlay" id="pwModal">
+  <div class="modal">
+    <div class="modal-title">🔐 Edit Mode</div>
+    <div class="modal-sub">Enter the admin password to modify box assignments</div>
+    <div class="form-group">
+      <label class="form-label">Password</label>
+      <input type="password" class="form-input" id="pwInput" placeholder="Enter password…" onkeydown="if(event.key==='Enter')checkPassword()">
+      <div class="form-error" id="pwError"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal('pwModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="checkPassword()">Unlock</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="boxModal">
+  <div class="modal">
+    <div class="modal-title" id="boxModalTitle">Edit Box</div>
+    <div class="modal-sub" id="boxModalSub"></div>
+    <div class="form-group">
+      <label class="form-label">Owner Name(s)</label>
+      <input type="text" class="form-input" id="boxOwnerInput" placeholder="e.g. John Smith" onkeydown="if(event.key==='Enter')saveBox()">
+      <div class="form-hint">Split box: comma-separate names → John, Jane (payout split evenly)</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-danger btn-sm" onclick="clearBox()">Clear</button>
+      <button class="btn btn-outline" onclick="closeModal('boxModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveBox()">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="infoModal">
+  <div class="modal">
+    <div class="modal-title" id="infoTitle">Box Detail</div>
+    <div class="modal-sub" id="infoSub"></div>
+    <div id="infoBody"></div>
+    <div class="modal-actions"><button class="btn btn-primary" onclick="closeModal('infoModal')">Close</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="settingsModal">
+  <div class="modal modal-lg">
+    <div class="modal-title">⚙ Settings</div>
+    <div class="modal-sub">Requires current edit password to save</div>
+    <div class="form-group"><label class="form-label">App Name</label><input type="text" class="form-input" id="sAppName"></div>
+    <div class="form-group"><label class="form-label">Box Price ($ per person per box)</label><input type="number" class="form-input" id="sBoxPrice" min="0"></div>
+    <hr class="divider">
+    <div class="section-title">Payout Per Round ($) — paid to winning box owner(s)</div>
+    <div class="settings-grid">
+      <div class="form-group"><label class="form-label">First Four</label><input type="number" class="form-input" id="p_f4" min="0"></div>
+      <div class="form-group"><label class="form-label">Round of 64</label><input type="number" class="form-input" id="p_r64" min="0"></div>
+      <div class="form-group"><label class="form-label">Round of 32</label><input type="number" class="form-input" id="p_r32" min="0"></div>
+      <div class="form-group"><label class="form-label">Sweet 16</label><input type="number" class="form-input" id="p_s16" min="0"></div>
+      <div class="form-group"><label class="form-label">Elite 8</label><input type="number" class="form-input" id="p_e8" min="0"></div>
+      <div class="form-group"><label class="form-label">Final Four</label><input type="number" class="form-input" id="p_ff" min="0"></div>
+      <div class="form-group"><label class="form-label">Championship</label><input type="number" class="form-input" id="p_ch" min="0"></div>
+      <div class="form-group"><label class="form-label">Fallback / Other</label><input type="number" class="form-input" id="p_oth" min="0"><div class="form-hint">Used if round can't be detected</div></div>
+    </div>
+    <hr class="divider">
+    <div class="section-title">Change Password</div>
+    <div class="settings-grid">
+      <div class="form-group"><label class="form-label">Current Password</label><input type="password" class="form-input" id="sCurPw"></div>
+      <div class="form-group"><label class="form-label">New Password (optional)</label><input type="password" class="form-input" id="sNewPw"></div>
+    </div>
+    <hr class="divider">
+    <div class="section-title">Analytics Historical Data</div>
+    <div style="font-size:11px;color:var(--textm);font-family:var(--fm);margin-bottom:10px" id="histCacheStatus">
+      Loading status…
+    </div>
+    <button class="btn btn-outline btn-sm" onclick="refreshHistoricalCache()">↻ Re-fetch Historical Data from ESPN</button>
+    <div class="form-hint" style="margin-top:6px">Forces a fresh fetch from ESPN (2000–2025) and updates the Firebase cache. Takes ~45 seconds. Only needed if you want updated data.</div>
+
+    <div class="form-error" id="sError"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal('settingsModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="setupModal">
+  <div class="modal">
+    <div class="modal-title">⚡ Welcome</div>
+    <div class="modal-sub">Create an edit password. Viewers see everything — only the password holder can change boxes.</div>
+    <div class="alert alert-warn" id="setupAlert">⚠ Firebase not yet configured — data saves to this browser only. See the setup guide to enable cross-device sync.</div>
+    <div class="form-group"><label class="form-label">Create Password</label><input type="password" class="form-input" id="su1" placeholder="Choose a password"></div>
+    <div class="form-group"><label class="form-label">Confirm Password</label><input type="password" class="form-input" id="su2" placeholder="Confirm"></div>
+    <div class="form-error" id="suErr"></div>
+    <div class="modal-actions"><button class="btn btn-primary" onclick="completeSetup()">Get Started →</button></div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
