@@ -1754,13 +1754,13 @@ function renderExplanation() {
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin-bottom:20px" class="explain-grid">
       <div style="background:var(--surf2);border-radius:8px;padding:14px;border:1px solid var(--border)">
         <div style="font-size:20px;margin-bottom:6px">📈</div>
-        <div style="font-weight:700;font-size:13px;color:var(--text);margin-bottom:6px">What the real data shows for winners</div>
-        <div style="font-size:12px;color:var(--texts);line-height:1.6">Based on real ESPN tournament data (2000–2025), the winning team's last digit is surprisingly uniform — no digit dominates dramatically. Digit <strong style="color:var(--bb)">3</strong> and <strong style="color:var(--bb)">9</strong> run slightly above average for winners historically, while digit <strong style="color:var(--bb)">0</strong> actually runs below average — the opposite of conventional wisdom about "round numbers."</div>
+        <div style="font-weight:700;font-size:13px;color:var(--text);margin-bottom:6px">Winner digits: relatively uniform</div>
+        <div style="font-size:12px;color:var(--texts);line-height:1.6">The winning team's last digit ranges from about <strong style="color:var(--bb)">9% to 11%</strong> across all digits — a fairly tight band. Digit <strong style="color:var(--bb)">3</strong> and <strong style="color:var(--bb)">9</strong> run slightly above average, digit <strong style="color:var(--bb)">0</strong> slightly below. The winner column alone can't create much edge — the spread is too small. The W digit contributes only modestly to a box's total probability.</div>
       </div>
       <div style="background:var(--surf2);border-radius:8px;padding:14px;border:1px solid var(--border)">
         <div style="font-size:20px;margin-bottom:6px">📉</div>
-        <div style="font-weight:700;font-size:13px;color:var(--text);margin-bottom:6px">What the real data shows for losers</div>
-        <div style="font-size:12px;color:var(--texts);line-height:1.6">The losing team's last digit has more variance. Digit <strong style="color:var(--bb)">3</strong> is the standout — it appears more often than any other losing digit historically, which is why the entire L3 row glows brightest green on the heatmap. Digit <strong style="color:var(--bb)">0</strong> for losers also runs above average, while digit <strong style="color:var(--bb)">9</strong> for losers is genuinely the rarest.</div>
+        <div style="font-weight:700;font-size:13px;color:var(--text);margin-bottom:6px">Loser digits: where the real edge comes from</div>
+        <div style="font-size:12px;color:var(--texts);line-height:1.6">The losing team's last digit has far more variance — ranging from <strong style="color:var(--bb)">~8% to ~13%</strong>, a 58% difference between best and worst. Loser digit <strong style="color:var(--bb)">3</strong> is the standout at ~12.7% historically. This is why the <strong style="color:var(--bb)">entire L3 row</strong> glows green — it's the loser digit, not the winner digit, that drives nearly all of the edge in this game. Loser digit <strong style="color:var(--bb)">9</strong> is genuinely the rarest at ~8%.</div>
       </div>
       <div style="background:var(--surf2);border-radius:8px;padding:14px;border:1px solid var(--border)">
         <div style="font-size:20px;margin-bottom:6px">⚖️</div>
