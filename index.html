@@ -704,12 +704,40 @@ async function fetchScores(){
   const btn=document.getElementById('refreshBtn');
   if(btn){btn.innerHTML='<span class="spin"></span> Loading';btn.disabled=true;}
   try{
-    let events=[];
-    for(const url of[`${ESPN_URL}?groups=100&limit=200`,`${ESPN_URL}?limit=100`]){
-      const r=await fetch(url),d=await r.json();events=d.events||[];if(events.length>0)break;
+    // Build date strings for yesterday, today, and tomorrow
+    // so we always capture completed games even if ESPN defaults to today
+    const now=new Date();
+    const dates=[-1,0,1].map(offset=>{
+      const d=new Date(now);d.setDate(d.getDate()+offset);
+      return d.toISOString().slice(0,10).replace(/-/g,'');
+    });
+
+    // Try multiple URLs: tournament group with date range, then fallback
+    const urls=[
+      `${ESPN_URL}?groups=100&limit=200&dates=${dates[0]}-${dates[2]}`,
+      `${ESPN_URL}?groups=100&limit=200`,
+      `${ESPN_URL}?limit=200&dates=${dates[0]}`,
+      `${ESPN_URL}?limit=200`
+    ];
+
+    let allEvents=[];
+    for(const url of urls){
+      try{
+        const r=await fetch(url),d=await r.json();
+        const evs=d.events||[];
+        if(evs.length>0){
+          // Merge events — avoid duplicates by id
+          evs.forEach(e=>{if(!allEvents.find(x=>x.id===e.id))allEvents.push(e);});
+        }
+      }catch(e){console.warn('ESPN URL failed:',url,e);}
+      // If we have completed games, no need to try more URLs
+      if(allEvents.some(e=>e.competitions?.[0]?.status?.type?.name?.includes('FINAL')))break;
     }
-    games=parseGames(events);
-    const ts=document.getElementById('refreshTs');if(ts)ts.textContent=`Updated ${new Date().toLocaleTimeString()}`;
+
+    games=parseGames(allEvents);
+    const completed=games.filter(g=>g.completed).length;
+    const ts=document.getElementById('refreshTs');
+    if(ts)ts.textContent=`Updated ${new Date().toLocaleTimeString()} · ${completed} final, ${games.filter(g=>g.inProgress).length} live, ${games.filter(g=>!g.completed&&!g.inProgress).length} upcoming`;
     renderScores();renderLive();renderGrid();updateStats();renderLeaderboard();
   }catch(e){
     const sc=document.getElementById('scoresContent');
