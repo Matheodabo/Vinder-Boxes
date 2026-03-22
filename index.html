@@ -1117,15 +1117,18 @@ function toggleAutoRefresh(){arOn=!arOn;document.getElementById('arToggle').clas
 // ── SETTINGS ──
 function openSettings(){
   document.getElementById('sAppName').value=document.getElementById('appNameDisplay').textContent;
-  document.getElementById('sBoxPrice').value=settings.boxPrice;
-  document.getElementById('p_f4').value=settings.payouts['First Four']||100;
-  document.getElementById('p_r64').value=settings.payouts['Round of 64']||100;
-  document.getElementById('p_r32').value=settings.payouts['Round of 32']||200;
-  document.getElementById('p_s16').value=settings.payouts['Sweet 16']||400;
-  document.getElementById('p_e8').value=settings.payouts['Elite 8']||800;
-  document.getElementById('p_ff').value=settings.payouts['Final Four']||1600;
-  document.getElementById('p_ch').value=settings.payouts['Championship']||4000;
-  document.getElementById('p_oth').value=settings.payouts['Tournament']||100;
+  // Use ?? (nullish coalescing) so 0 displays as 0, not the default.
+  // || would treat 0 as falsy and show the fallback value instead.
+  const pDef=(key,def)=>settings.payouts[key]??def;
+  document.getElementById('sBoxPrice').value=settings.boxPrice??10;
+  document.getElementById('p_f4').value=pDef('First Four',100);
+  document.getElementById('p_r64').value=pDef('Round of 64',100);
+  document.getElementById('p_r32').value=pDef('Round of 32',200);
+  document.getElementById('p_s16').value=pDef('Sweet 16',400);
+  document.getElementById('p_e8').value=pDef('Elite 8',800);
+  document.getElementById('p_ff').value=pDef('Final Four',1600);
+  document.getElementById('p_ch').value=pDef('Championship',4000);
+  document.getElementById('p_oth').value=pDef('Tournament',100);
   document.getElementById('sCurPw').value='';document.getElementById('sNewPw').value='';
   document.getElementById('sError').textContent='';
   updateHistCacheStatus();
