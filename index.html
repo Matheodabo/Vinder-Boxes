@@ -848,9 +848,8 @@ async function fetchScores(){
   const btn=document.getElementById('refreshBtn');
   if(btn){btn.innerHTML='<span class="spin"></span> Loading';btn.disabled=true;}
   try{
-    // Build every date from March 17 (First Four) through tomorrow.
-    // A rolling window of "last 3 days" misses all early-round games
-    // once we get past March 22. Fixed start date ensures full coverage.
+    // Fetch every date from March 17 (First Four) through tomorrow.
+    // Rolling window of "last 3 days" misses early rounds once we pass March 22.
     const TOURNEY_START=new Date('2026-03-17T00:00:00');
     const tomorrow=new Date();tomorrow.setDate(tomorrow.getDate()+1);
     const datesToFetch=[];
@@ -859,8 +858,6 @@ async function fetchScores(){
       const dd=String(d.getDate()).padStart(2,'0');
       datesToFetch.push(`${d.getFullYear()}${mm}${dd}`);
     }
-
-    // Fetch in batches of 5, deduplicate by event id
     const seen=new Set(),allEvents=[];
     for(let i=0;i<datesToFetch.length;i+=5){
       const batch=datesToFetch.slice(i,i+5);
@@ -991,9 +988,8 @@ function detectRound(nameStr, abbr='', seasonTypeId=0, rawDate=''){
      // ESPN sometimes uses just "Championship" as the full headline for the final
      s.match(/^championship\s*$/)) return'Championship';
 
-  // 4. Date-based fallback using the fixed 2026 NCAA Tournament schedule.
-  //    ESPN often omits round info in notes — this catches the rest.
-  //    Critical for financial accuracy — wrong round = wrong payout.
+  // 4. Date-based fallback — ESPN often omits round info in notes.
+  //    Critical for financial accuracy: wrong round = wrong payout.
   if(rawDate){
     const d=new Date(rawDate);
     const key=`${d.getMonth()+1}-${d.getDate()}`;
@@ -1008,7 +1004,6 @@ function detectRound(nameStr, abbr='', seasonTypeId=0, rawDate=''){
     };
     if(dateRoundMap[key])return dateRoundMap[key];
   }
-
   // 5. Last resort — log for debugging so we can improve detection
   console.warn('[detectRound] Unrecognized round string:', nameStr, '| abbr:', abbr);
   return'Round of 64'; // Default to cheapest payout — fail safe for finances
@@ -1142,19 +1137,21 @@ async function saveSettings(){
   if(settings.editPasswordHash){const h=await sha256(cur);if(h!==settings.editPasswordHash){err.textContent='❌ Incorrect password.';return;}}
   const nn=document.getElementById('sAppName').value.trim();
   if(nn){document.getElementById('appNameDisplay').textContent=nn;document.title=nn;settings.appName=nn;}
-  settings.boxPrice=parseFloat(document.getElementById('sBoxPrice').value)||10;
-  const p_f4=parseFloat(document.getElementById('p_f4').value)||100;
-  const p_r64=parseFloat(document.getElementById('p_r64').value)||100;
-  const p_oth=parseFloat(document.getElementById('p_oth').value)||100;
+  // Use isNaN guard instead of || fallback — || treats 0 as falsy and
+  // silently replaces it with the default. $0 is a valid payout (e.g.
+  // First Four not paid out), so we only fall back when the field is
+  // blank or non-numeric.
+  const pVal=(id,def)=>{const v=parseFloat(document.getElementById(id).value);return isNaN(v)?def:v;};
+  settings.boxPrice=pVal('sBoxPrice',10);
   settings.payouts={
-    'First Four':  p_f4,
-    'Round of 64': p_r64,
-    'Round of 32': parseFloat(document.getElementById('p_r32').value)||200,
-    'Sweet 16':    parseFloat(document.getElementById('p_s16').value)||400,
-    'Elite 8':     parseFloat(document.getElementById('p_e8').value)||800,
-    'Final Four':  parseFloat(document.getElementById('p_ff').value)||1600,
-    'Championship':parseFloat(document.getElementById('p_ch').value)||4000,
-    'Tournament':  p_oth,  // catch-all fallback for any unrecognized round
+    'First Four':  pVal('p_f4',100),
+    'Round of 64': pVal('p_r64',100),
+    'Round of 32': pVal('p_r32',200),
+    'Sweet 16':    pVal('p_s16',400),
+    'Elite 8':     pVal('p_e8',800),
+    'Final Four':  pVal('p_ff',1600),
+    'Championship':pVal('p_ch',4000),
+    'Tournament':  pVal('p_oth',100),  // catch-all fallback for any unrecognized round
   };
   if(nw)settings.editPasswordHash=await sha256(nw);
   if(db)await db.collection('settings').doc('config').set(settings).catch(console.error);else localSave();
