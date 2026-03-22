@@ -758,7 +758,7 @@ function handleCell(r,c){
     if(wins.length>0){
       html+=`<div class="section-title">GAMES WON BY THIS BOX</div>`;
       wins.forEach(g=>{
-        const p=settings.payouts[g.round]||settings.payouts.Tournament||0;
+        const p=settings.payouts[g.round]??settings.payouts.Tournament??0;
         const each=co.length>1?` · $${(p/co.length).toFixed(2)} each`:'';
         html+=`<div style="padding:9px 12px;background:var(--gdim);border-radius:7px;margin-bottom:6px;border-left:2px solid var(--green)">
           <div style="font-weight:700;font-size:13px;color:var(--text)">${g.winnerName} ${g.winnerScore} — ${g.loserName} ${g.loserScore}</div>
@@ -1062,7 +1062,7 @@ function computeLB(){
   });
   games.filter(g=>g.completed).forEach(g=>{
     const hit=boxForDigits(g.winnerScore%10,g.loserScore%10);
-    const payout=settings.payouts[g.round]||settings.payouts.Tournament||0;
+    const payout=settings.payouts[g.round]??settings.payouts.Tournament??0;
     if(hit.owners.length>0&&payout>0){
       const each=payout/hit.owners.length;
       hit.owners.forEach(name=>{ens(name);p[name].wins+=1;p[name].earned+=each;});
@@ -1656,13 +1656,13 @@ function renderEVTable() {
       const expHits = prob * 67;
       // Expected $ value across all rounds (weighted by games per round and payout)
       const roundData = [
-        { games: 4,  pay: settings.payouts['First Four']  || 100  },  // First Four (2011+)
-        { games: 32, pay: settings.payouts['Round of 64'] || 100  },
-        { games: 16, pay: settings.payouts['Round of 32'] || 200  },
-        { games: 8,  pay: settings.payouts['Sweet 16']    || 400  },
-        { games: 4,  pay: settings.payouts['Elite 8']     || 800  },
-        { games: 2,  pay: settings.payouts['Final Four']  || 1600 },
-        { games: 1,  pay: settings.payouts['Championship']|| 4000 },
+        { games: 4,  pay: settings.payouts['First Four']  ?? 100  },  // First Four (2011+)
+        { games: 32, pay: settings.payouts['Round of 64'] ?? 100  },
+        { games: 16, pay: settings.payouts['Round of 32'] ?? 200  },
+        { games: 8,  pay: settings.payouts['Sweet 16']    ?? 400  },
+        { games: 4,  pay: settings.payouts['Elite 8']     ?? 800  },
+        { games: 2,  pay: settings.payouts['Final Four']  ?? 1600 },
+        { games: 1,  pay: settings.payouts['Championship']?? 4000 },
       ];  // 67 total games (modern format since 2011)
       const ev = roundData.reduce((s, rd) => s + prob * rd.games * rd.pay, 0);
       const key = `${r}_${c}`;
@@ -1728,13 +1728,13 @@ function renderExplanation() {
       const wd = WINNER_DIGITS[c], ld = LOSER_DIGITS[r];
       const prob = boxTheorProb(wd, ld);
       const roundData = [
-        { games: 4,  pay: settings.payouts['First Four']  || 100  },  // First Four (2011+)
-        { games: 32, pay: settings.payouts['Round of 64'] || 100  },
-        { games: 16, pay: settings.payouts['Round of 32'] || 200  },
-        { games: 8,  pay: settings.payouts['Sweet 16']    || 400  },
-        { games: 4,  pay: settings.payouts['Elite 8']     || 800  },
-        { games: 2,  pay: settings.payouts['Final Four']  || 1600 },
-        { games: 1,  pay: settings.payouts['Championship']|| 4000 },
+        { games: 4,  pay: settings.payouts['First Four']  ?? 100  },  // First Four (2011+)
+        { games: 32, pay: settings.payouts['Round of 64'] ?? 100  },
+        { games: 16, pay: settings.payouts['Round of 32'] ?? 200  },
+        { games: 8,  pay: settings.payouts['Sweet 16']    ?? 400  },
+        { games: 4,  pay: settings.payouts['Elite 8']     ?? 800  },
+        { games: 2,  pay: settings.payouts['Final Four']  ?? 1600 },
+        { games: 1,  pay: settings.payouts['Championship']?? 4000 },
       ];  // 67 total games (modern format since 2011)
       const ev = roundData.reduce((s, rd) => s + prob * rd.games * rd.pay, 0);
       rows.push({ wd, ld, prob, ev, owners: owners[`${r}_${c}`] || [] });
